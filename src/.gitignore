@@ -1,0 +1,18 @@
+# Ignore rustup installer
+rustup-init.exe
+
+# Ignore temporary or unnecessary files
+*.log
+*.tmp
+
+# Ignore compiled Python files
+__pycache__/
+*.py[cod]
+
+# Ignore virtual environments
+venv/
+.env/
+
+# Ignore system files
+.DS_Store
+Thumbs.db
