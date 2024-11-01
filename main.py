@@ -5,11 +5,15 @@ import warnings  # Suppress warnings
 import torch  # PyTorch for device management
 import numpy as np  # For handling audio data as arrays
 import concurrent.futures  # For asynchronous transcription
+import re  # Regular expression for specific warning suppression
 
 # Suppress specific warnings
 with warnings.catch_warnings():
-    warnings.simplefilter(action='ignore', category=FutureWarning)
+    # Suppress FP16 warning on CPU and torch.load FutureWarning related to weights_only
     warnings.simplefilter(action='ignore', category=UserWarning)  # Ignore FP16 warning
+    warnings.filterwarnings("ignore", 
+                            message=re.escape("You are using `torch.load` with `weights_only=False`"),
+                            category=FutureWarning)
     torch.set_float32_matmul_precision('high')
 
 # Detect available device (GPU if available, else CPU)
