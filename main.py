@@ -5,23 +5,20 @@ import warnings  # Suppress warnings
 import torch  # PyTorch for device management
 import numpy as np  # For handling audio data as arrays
 import concurrent.futures  # For asynchronous transcription
-import re  # Regular expression for specific warning suppression
 
-# Suppress specific warnings
+# Set float precision for torch without triggering warnings
 with warnings.catch_warnings():
-    # Suppress FP16 warning on CPU and torch.load FutureWarning related to weights_only
-    warnings.simplefilter(action='ignore', category=UserWarning)  # Ignore FP16 warning
-    warnings.filterwarnings("ignore", 
-                            message=re.escape("You are using `torch.load` with `weights_only=False`"),
-                            category=FutureWarning)
+    warnings.simplefilter("ignore", category=UserWarning)  # Ignore FP16 warning
     torch.set_float32_matmul_precision('high')
 
 # Detect available device (GPU if available, else CPU)
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
-# Load Whisper model
+# Load Whisper model with specific warning suppression for torch.load
 try:
-    model = whisper.load_model("base", device=device)  # Load "base" model on the selected device
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", category=FutureWarning)  # Ignore torch.load weights_only warning
+        model = whisper.load_model("base", device=device)  # Load "base" model on the selected device
     print("Model loaded successfully.")
 except Exception as e:
     print(f"Failed to load the model: {e}")
