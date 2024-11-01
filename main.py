@@ -8,7 +8,7 @@ import concurrent.futures  # For asynchronous transcription
 
 # Set float precision for torch without triggering warnings
 with warnings.catch_warnings():
-    warnings.simplefilter("ignore", category=UserWarning)  # Ignore FP16 warning
+    warnings.simplefilter("ignore", category=UserWarning)  # Ignore FP32 warning
     torch.set_float32_matmul_precision('high')
 
 # Detect available device (GPU if available, else CPU)
