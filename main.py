@@ -3,11 +3,13 @@ import tkinter as tk  # Tkinter for GUI
 from tkinter import filedialog  # File dialog for file selection
 import warnings  # Suppress warnings
 import torch  # PyTorch for device management
+import numpy as np  # For handling audio data as arrays
 import concurrent.futures  # For asynchronous transcription
 
-# Suppress FutureWarnings
+# Suppress specific warnings
 with warnings.catch_warnings():
     warnings.simplefilter(action='ignore', category=FutureWarning)
+    warnings.simplefilter(action='ignore', category=UserWarning)  # Ignore FP16 warning
     torch.set_float32_matmul_precision('high')
 
 # Detect available device (GPU if available, else CPU)
@@ -26,6 +28,22 @@ def transcribe_async(file_path):
     with concurrent.futures.ThreadPoolExecutor() as executor:
         future = executor.submit(model.transcribe, file_path)
         return future.result()
+
+# Real-time transcription function (with bytes conversion fix)
+def transcribe_real_time(data):
+    try:
+        # Convert raw audio bytes to NumPy array
+        np_data = np.frombuffer(data, dtype=np.float32)
+        
+        # Convert to PyTorch tensor and add batch dimension
+        audio = torch.from_numpy(np_data).unsqueeze(0).to(device)
+        
+        # Perform transcription
+        result = model.transcribe(audio)
+        print("Transcription:", result["text"])
+        
+    except Exception as e:
+        print(f"An error occurred during real-time transcription: {e}")
 
 # Function to open file dialog, transcribe file, and save the result
 def transcribe_file():
