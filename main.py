@@ -1,54 +1,81 @@
-import tkinter as tk
-import threading
-import pyaudio
-import torch
+import whisper  # Whisper library for speech recognition
+import tkinter as tk  # Tkinter for GUI
+from tkinter import filedialog  # File dialog for file selection
+import warnings  # Suppress warnings
+import torch  # PyTorch for device management
+import concurrent.futures  # For asynchronous transcription
 
-# ... (existing code)
+# Suppress FutureWarnings
+with warnings.catch_warnings():
+    warnings.simplefilter(action='ignore', category=FutureWarning)
+    torch.set_float32_matmul_precision('high')
 
-def start_transcription():
-    threading.Thread(target=transcribe_real_time, daemon=True).start()
-    start_button.config(state="disabled")
-    stop_button.config(state="normal")
+# Detect available device (GPU if available, else CPU)
+device = "cuda" if torch.cuda.is_available() else "cpu"
 
-def stop_transcription():
-    global should_run
-    should_run = False
-    start_button.config(state="normal")
-    stop_button.config(state="disabled")
+# Load Whisper model
+try:
+    model = whisper.load_model("base", device=device)  # Load "base" model on the selected device
+    print("Model loaded successfully.")
+except Exception as e:
+    print(f"Failed to load the model: {e}")
+    exit()  # Exit if the model fails to load
 
-def transcribe_real_time():
-    global should_run
-    should_run = True
+# Function to perform asynchronous transcription
+def transcribe_async(file_path):
+    with concurrent.futures.ThreadPoolExecutor() as executor:
+        future = executor.submit(model.transcribe, file_path)
+        return future.result()
 
-    p = pyaudio.PyAudio()
-    stream = p.open(format=pyaudio.paInt16,
-                    channels=1,
-                    rate=16000,
-                    input=True,
-                    frames_per_buffer=1024)
+# Function to open file dialog, transcribe file, and save the result
+def transcribe_file():
+    # Open file dialog to select an audio file
+    file_path = filedialog.askopenfilename(
+        title="Select an audio file for transcription",
+        filetypes=[("Audio Files", "*.mp3 *.wav *.m4a *.ogg"), ("All Files", "*.*")]
+    )
+    
+    if file_path:
+        result_text.insert(tk.END, f"Transcribing {file_path}...\n")
+        
+        try:
+            # Run transcription asynchronously
+            transcription = transcribe_async(file_path)
+            result_text.insert(tk.END, transcription["text"] + "\nTranscription complete!\n")
 
-    print("Start speaking. Press the 'Stop' button to stop.")
-    while should_run:
-        data = stream.read(1024, exception_on_overflow=False)
-        audio = torch.from_numpy(data.astype('float32')).unsqueeze(0).to(device)
-        input_values = processor(audio, sampling_rate=16000, return_tensors="pt").input_values
-        output = model.generate(input_values)
-        transcription = processor.decode(output[0])[0]
-        print(f"Transcription: {transcription}", end="\r")
+            # Save the transcription to a text file
+            output_path = filedialog.asksaveasfilename(
+                defaultextension=".txt",
+                filetypes=[("Text Files", "*.txt")],
+                title="Save transcription"
+            )
+            if output_path:
+                with open(output_path, "w", encoding="utf-8") as f:
+                    f.write(transcription["text"])
+                result_text.insert(tk.END, f"Transcription saved as {output_path}\n")
+            else:
+                result_text.insert(tk.END, "Transcription not saved.\n")
 
-    stream.stop_stream()
-    stream.close()
-    p.terminate()
-    print("\nStopping real-time transcription.")
+        except Exception as e:
+            result_text.insert(tk.END, f"An error occurred during transcription: {e}\n")
+    else:
+        result_text.insert(tk.END, "No file selected.\n")
 
-# Create the Tkinter GUI
+# Tkinter GUI setup
 root = tk.Tk()
-root.title("Real-time Speech Transcription")
+root.title("Audio Transcription")
 
-start_button = tk.Button(root, text="Start Transcription", command=start_transcription)
-start_button.pack(pady=10)
+# GUI label
+file_label = tk.Label(root, text="Select an audio file for transcription:")
+file_label.pack()
 
-stop_button = tk.Button(root, text="Stop Transcription", command=stop_transcription, state="disabled")
-stop_button.pack(pady=10)
+# Button to select file and start transcription
+open_button = tk.Button(root, text="Choose File", command=transcribe_file)
+open_button.pack()
 
+# Text widget to display transcription result and status messages
+result_text = tk.Text(root, wrap=tk.WORD)
+result_text.pack()
+
+# Run the GUI loop
 root.mainloop()
