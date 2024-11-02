@@ -20,8 +20,8 @@ def compress_image():
             width, height = image.size
             new_dimensions = (int(width * 0.8), int(height * 0.8))
             
-            # Resize the image
-            compressed_image = image.resize(new_dimensions, Image.ANTIALIAS)
+            # Resize the image using LANCZOS filter for high-quality downsampling
+            compressed_image = image.resize(new_dimensions, Image.LANCZOS)
             
             # Set the default save path with "_compressed" suffix
             original_dir = os.path.dirname(file_path)
